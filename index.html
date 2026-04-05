@@ -66,6 +66,34 @@
     .trumpet-btn:hover { transform: scale(1.04); box-shadow: 0 12px 40px rgba(227,192,108,.6); }
     .trumpet-btn .ico { font-size: 1.5rem; }
     .scroll-decoration { color: var(--gold); opacity: .5; font-size: 1.4rem; letter-spacing: 8px; }
+    .intro-guide {
+      max-width: 760px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(7,18,37,.45);
+      color: rgba(248,238,214,.9);
+      font-family: 'Cinzel', serif;
+      font-size: .86rem;
+      line-height: 1.45;
+    }
+    .intro-swipe {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: rgba(248,238,214,.75);
+      font-size: .86rem;
+    }
+    .intro-swipe .arrow {
+      font-size: 1.1rem;
+      color: var(--gold2);
+      animation: introSwipeBounce 1.1s ease-in-out infinite;
+    }
+    @keyframes introSwipeBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+    }
 
     /* ── STORY ── */
     .story-page { position: relative; overflow: hidden; }
@@ -294,7 +322,12 @@
   <div class="intro-crest">⚜️</div>
   <div class="intro-title">Le Royaume d'Hugo<br>vous convie…</div>
   <div class="intro-sub">Une histoire épique vous attend, noble invité(e)</div>
+  <div class="intro-guide">Etape 1/3 : clique sur le bouton pour lancer l'histoire. Tu peux aussi paginer vers le bas pour commencer.</div>
   <div class="scroll-decoration">✦ ✦ ✦</div>
+  <div class="intro-swipe" aria-hidden="true">
+    <span class="arrow">▼</span>
+    <span>Fais defiler vers le bas pour ouvrir l'histoire</span>
+  </div>
   <button class="btn gold" id="goStory">🎬 Découvrir l'histoire</button>
 </section>
 
@@ -598,9 +631,12 @@
   const scenes = [...document.querySelectorAll(".scene")];
   const bars = [...document.querySelectorAll("#progress span")];
   const storyHint = document.getElementById("storyHint");
+  const introPage = document.getElementById("page-intro");
   let index = 0;
   let storyTimer;
   let autoOpenedParchment = false;
+  let introTouchStartY = null;
+  let introStarted = false;
 
   function renderScene() {
     scenes.forEach((s, i) => s.classList.toggle("active", i === index));
@@ -637,12 +673,39 @@
   document.getElementById("soundBtn").addEventListener("click", toggleSound);
 
   /* ── NAV ── */
-  document.getElementById("goStory").addEventListener("click", () => {
+  function startStoryFromIntro() {
+    if (introStarted) return;
+    introStarted = true;
     index = 0;
     autoOpenedParchment = false;
     showPage("story");
     renderScene();
     scheduleStory();
+  }
+
+  document.getElementById("goStory").addEventListener("click", startStoryFromIntro);
+  introPage.addEventListener("wheel", (e) => {
+    if (!pages.intro.classList.contains("active")) return;
+    if (e.deltaY > 20) {
+      e.preventDefault();
+      startStoryFromIntro();
+    }
+  }, { passive: false });
+  introPage.addEventListener("touchstart", (e) => {
+    if (!pages.intro.classList.contains("active")) return;
+    introTouchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  introPage.addEventListener("touchmove", (e) => {
+    if (!pages.intro.classList.contains("active")) return;
+    if (introTouchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    if (introTouchStartY - currentY > 45) {
+      introTouchStartY = null;
+      startStoryFromIntro();
+    }
+  }, { passive: true });
+  introPage.addEventListener("touchend", () => {
+    introTouchStartY = null;
   });
   document.getElementById("goParchment").addEventListener("click", () => {
     clearTimeout(storyTimer);
@@ -654,6 +717,7 @@
   });
   document.getElementById("backStory").addEventListener("click", () => {
     autoOpenedParchment = false;
+    introStarted = false;
     showPage("story");
     renderScene();
     scheduleStory();
